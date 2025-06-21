@@ -1,0 +1,32 @@
+# Version control
+.git
+.gitignore
+
+# Node.js
+node_modules
+npm-debug.log
+yarn-debug.log
+yarn-error.log
+
+# Build artifacts
+dist
+build
+coverage
+*.tsbuildinfo
+
+# Docker files
+Dockerfile
+Dockerfile.dev
+docker-compose.yml
+.dockerignore
+
+# Development files
+.vscode
+.idea
+*.md
+!README.md
+
+# Other
+.DS_Store
+*.log
+.mcp-cache

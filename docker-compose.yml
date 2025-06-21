@@ -1,0 +1,73 @@
+version: '3.8'
+
+services:
+  # Development service with hot-reloading
+  dev:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+    container_name: mcp-workspace-tracker-dev
+    volumes:
+      # Mount source code for hot-reloading
+      - ./src:/app/src
+      - ./tests:/app/tests
+      # Mount a workspace directory for scanning
+      - ${WORKSPACE_PATH:-./sample-workspace}:/workspace
+      # Mount a volume for the cache to persist between container restarts
+      - mcp-cache:/app/cache
+    ports:
+      - "7863:7860"
+    environment:
+      - NODE_ENV=development
+    # Create sample workspace if not using a custom path and it doesn't exist
+    entrypoint: >
+      sh -c "
+        if [ ! -d /workspace/src ] && [ \"$$WORKSPACE_PATH\" = \"\" ]; then
+          echo 'Creating sample workspace...'
+          mkdir -p /workspace/src
+          cp -r /app/sample-workspace/* /workspace/ 2>/dev/null || echo 'Using existing workspace'
+        fi
+        npm run watch & npm start /workspace
+      "
+    # Restart on file changes
+    restart: unless-stopped
+    
+  # Production service optimized for performance
+  prod:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    container_name: mcp-workspace-tracker-prod
+    volumes:
+      # Mount a workspace directory for scanning
+      - ${WORKSPACE_PATH:-./sample-workspace}:/workspace
+      # Mount a volume for the cache to persist between container restarts
+      - mcp-cache:/app/cache
+    ports:
+      - "7860:7860"
+    environment:
+      - NODE_ENV=production
+    # Create sample workspace if not using a custom path and it doesn't exist
+    entrypoint: >
+      sh -c "
+        # Create sample workspace if needed
+        if [ ! -d /workspace/src ] && [ \"$$WORKSPACE_PATH\" = \"\" ]; then
+          echo 'Creating sample workspace...'
+          mkdir -p /workspace/src
+          cp -r /app/sample-workspace/* /workspace/ 2>/dev/null || echo 'Using existing workspace' 
+        fi
+        
+        node dist/index.js /workspace
+      "
+    # Health check - just check if the process is running
+    healthcheck:
+      test: ["CMD", "pgrep", "-f", "node dist/index.js"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+    restart: unless-stopped
+
+volumes:
+  # Named volume for persistent cache storage
+  mcp-cache:
