@@ -43,13 +43,13 @@
    - Error handling with proper logging
 
 6. **Logger Service**
-
+   
    - Winston-based logging implementation
    - Log level configuration
    - Structured logging format
 
 7. **MCP Integration**
-
+   
    - MCP TypeScript SDK integration
    - Resource registration system
    - Tool registration system

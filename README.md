@@ -1,6 +1,6 @@
-# MCP Server for VSCode + Copilot Agent Mode
+# MCP Workspace Tracker
 
-A TypeScript-based Model Communication Protocol (MCP) server to provide VSCode with enhanced code intelligence.
+A TypeScript-based Model Context Protocol (MCP) server to provide VSCode with enhanced code intelligence using the official MCP TypeScript SDK. Built with SOLID principles and dependency injection.
 
 ## Features
 
@@ -8,20 +8,31 @@ A TypeScript-based Model Communication Protocol (MCP) server to provide VSCode w
 - Class & symbol hierarchy extraction
 - Module dependency graph
 - Persistent symbol intelligence
-- Real-time updates for Copilot Agent Mode
+- Real-time updates for AI assistants
+- MCP TypeScript SDK integration
+- Standard MCP resources and tools
+- SOLID architecture with dependency injection
 
 ## Architecture
 
 ```
 VSCode Extension
  └── MCP Server (Node.js/TypeScript)
-      ├── WorkspaceScanner
-      ├── SymbolIndexer
-      ├── ClassHierarchyBuilder
-      ├── ProjectGraphBuilder
-      ├── MCPProtocolHandler
-      ├── CopilotAgentAdapter
-      └── PersistenceManager
+      ├── Core
+      │   ├── Interfaces (SOLID contracts)
+      │   ├── Models (Domain entities)
+      │   └── Services (Business logic)
+      │       ├── Logger
+      │       ├── WorkspaceScanner
+      │       ├── SymbolIndexer
+      │       ├── PersistenceManager
+      │       └── McpWorkspaceTracker
+      ├── Adapters
+      │   └── MCP Integration
+      │       ├── Resources
+      │       └── Tools
+      └── Config
+          └── Dependency Injection Container
 ```
 
 ## Project Structure
@@ -29,26 +40,44 @@ VSCode Extension
 ```
 mcp-workspace-tracker/
 ├── cli/                     # Command-line scripts
+│   ├── clean-test-results.sh       # Cleans test results directory
+│   ├── copy-test-results.sh        # Copies test results from Docker
 │   ├── create-sample-workspace.sh  # Creates sample TypeScript project
-│   ├── docker.sh            # Docker management script
-│   └── setup.sh             # Project setup script
-├── docker/                  # Docker configuration
-│   ├── Dockerfile           # Production Docker configuration
-│   └── Dockerfile.dev       # Development Docker configuration
+│   ├── docker.sh                   # Docker management script
+│   ├── run-lint.sh                 # Runs ESLint on the codebase
+│   ├── run-tests.sh                # Runs tests in a clean Docker env
+│   └── setup.sh                    # Project setup script
 ├── docs/                    # Documentation
 │   └── ...
-├── sample-workspace/        # Sample TypeScript project for testing
-│   └── ...
 ├── src/                     # Source code
-│   ├── core/                # Core analysis modules
-│   ├── persistence/         # Caching system
-│   ├── protocol/            # Protocol handlers
-│   └── utils/               # Utilities
-└── tests/                   # Test files
-    └── ...
+│   ├── config/              # Configuration and DI setup
+│   │   ├── container.ts     # Inversify DI container
+│   │   └── types.ts         # DI type identifiers
+│   ├── core/                # Core modules
+│   │   ├── interfaces/      # SOLID interface contracts
+│   │   ├── models/          # Domain models
+│   │   └── services/        # Service implementations
+│   ├── adapters/            # External system adapters
+│   │   └── mcp/             # MCP protocol integration
+│   │       ├── resources.ts # MCP resource definitions
+│   │       └── tools.ts     # MCP tool definitions
+│   ├── domain/              # Domain specific logic
+│   ├── types/               # TypeScript type definitions
+│   └── utils/               # Utility functions
+├── tests/                   # Test files
+│   └── ...
+└── start-server.ts         # Server entry point
 ```
 
-## Getting Started
+## Development Workflow
+
+This project uses a clean, modular development approach with strong adherence to SOLID principles:
+
+- **Dependency Injection**: All components are injected via Inversify
+- **Interface-first development**: Components implement clear interfaces
+- **Testable components**: Services designed for unit testing
+
+### Local Development Setup
 
 1. Install dependencies:
 
@@ -62,93 +91,79 @@ npm install
 npm run build
 ```
 
-3. Run the server:
+3. Run the server locally:
 
 ```bash
+# Run with a specific workspace path
+npm start /path/to/workspace
+
+# Or using the command directly
+node dist/start-server.js --workspace=/path/to/workspace
+```
+
+### Testing
+
+```bash
+# Run tests locally
+npm test
+
+# Run tests with coverage
+npm run test:coverage
+```
+
+## Getting Started
+
+1. For development, follow the Local Development Setup steps above.
+
+2. For usage:
+
+```bash
+# Install dependencies
+npm install
+
+# Build the project
+npm run build
+
+# Start the server with a workspace path
 npm start /path/to/workspace
 ```
 
-## Development
+## MCP SDK Integration
 
-- Build in watch mode:
+This project implements the official [Model Context Protocol (MCP) TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk) to provide a standards-compliant MCP server. The SDK provides:
 
-```bash
-npm run watch
-```
+- Standardized protocol handling
+- Resource and tool registration
+- Multiple transport options (stdio, HTTP)
+- Error handling and validation
 
-- Run tests:
+### Available MCP Resources
 
-```bash
-npm test
-```
+| Resource        | URI Pattern           | Description                               |
+| --------------- | --------------------- | ----------------------------------------- |
+| Workspace Info  | `workspace://info`    | General workspace statistics              |
+| File List       | `files://{pattern}`   | Lists files matching a glob pattern       |
+| File Contents   | `file://{path}`       | Retrieves the contents of a specific file |
+| Symbol Info     | `symbol://{name}`     | Retrieves information about code symbols  |
+| Class Hierarchy | `hierarchy://{class}` | Retrieves class inheritance hierarchy     |
 
-## Docker Support
+### Available MCP Tools
 
-The project includes Docker configurations for both development and production environments.
+| Tool               | Description                                    | Parameters                                                    |
+| ------------------ | ---------------------------------------------- | ------------------------------------------------------------- |
+| `search-symbols`   | Search for symbols in the workspace            | `query`: Search term<br>`kind`: Symbol kind filter (optional) |
+| `scan-workspace`   | Scan workspace to update file and symbol index | `path`: Path to scan (optional)                               |
+| `get-file-symbols` | Get symbols for a specific file                | `filePath`: Path to the file to analyze                       |
 
-### Using Docker
-
-1. Development mode with hot-reloading:
-
-```bash
-./cli/docker.sh dev /path/to/workspace
-```
-
-2. Production mode:
-
-```bash
-./cli/docker.sh prod /path/to/workspace
-```
-
-3. Build containers without running:
+## Running the Server
 
 ```bash
-./cli/docker.sh build
+# Build the project
+npm run build
+
+# Run MCP server with stdio transport (default)
+npm start /path/to/workspace
+
+# Run with HTTP transport
+node dist/start-server.js --workspace=/path/to/workspace --transport=http
 ```
-
-4. Clean up Docker resources:
-
-```bash
-./cli/docker.sh clean
-```
-
-### Manual Docker Commands
-
-You can also use Docker Compose directly:
-
-```bash
-# Development mode
-WORKSPACE_PATH=/path/to/workspace docker-compose up dev
-
-# Production mode
-WORKSPACE_PATH=/path/to/workspace docker-compose up -d prod
-```
-
-## Project Status
-
-This project is currently in active development following a phased approach:
-
-### Phase 1: Core Infrastructure (Completed)
-
-- Robust WorkspaceScanner with minimatch-based ignore patterns
-- SymbolIndexer with TypeScript Compiler API
-- File-based caching system with hash comparison
-- Essential MCP protocol handlers
-
-### Phase 2: Advanced Analysis (Current)
-
-- Class hierarchy analysis
-- Project dependency graph
-- Enhanced persistence layer
-- Extended MCP protocol
-
-### Future Phases
-
-- WebSocket-based real-time updates
-- Plugin system for additional languages
-- Visualization capabilities
-- Code refactoring suggestions
-
-## License
-
-MIT

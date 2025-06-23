@@ -1,66 +1,71 @@
+import 'reflect-metadata';
+import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { configureContainer } from './config/container';
+import { TYPES } from './config/types';
+import { IMcpWorkspaceTracker } from './core/interfaces/IMcpWorkspaceTracker';
+import { registerMcpResources } from './adapters/mcp/resources';
+import { registerMcpTools } from './adapters/mcp/tools';
+
 /**
- * MCP Server for VSCode + Copilot Agent Mode
- * Main entry point
+ * Start the MCP server with the provided workspace tracker instance
+ * @param workspaceTracker - Initialized workspace tracker instance
  */
-
-import { WorkspaceScanner } from "./core/WorkspaceScanner";
-import { SymbolIndexer } from "./core/SymbolIndexer";
-import { PersistenceManager } from "./persistence/PersistenceManager";
-import { MCPProtocolHandler } from "./protocol/MCPProtocolHandler";
-
-/**
- * Main class for the MCP Workspace Tracker
- */
-class MCPWorkspaceTracker {
-	private workspaceScanner: WorkspaceScanner;
-	private symbolIndexer: SymbolIndexer;
-	private persistenceManager: PersistenceManager;
-	private protocolHandler: MCPProtocolHandler;
-
-	constructor() {
-		this.persistenceManager = new PersistenceManager();
-		this.workspaceScanner = new WorkspaceScanner();
-		this.symbolIndexer = new SymbolIndexer();
-		this.protocolHandler = new MCPProtocolHandler(
-			this.workspaceScanner,
-			this.symbolIndexer,
-			this.persistenceManager
-		);
-	}
-
-	/**
-	 * Initialize the workspace tracker
-	 * @param workspacePath The path to the workspace
-	 */
-	public async initialize(workspacePath: string): Promise<void> {
-		console.log(`Initializing MCP Workspace Tracker for ${workspacePath}`);
-
-		// Initialize persistence system
-		await this.persistenceManager.initialize(workspacePath);
-
-		// Scan the workspace
-		const files = await this.workspaceScanner.scanWorkspace(workspacePath);
-		console.log(`Found ${files.length} files in workspace`);
-
-		// Index symbols
-		await this.symbolIndexer.indexWorkspace(files);
-
-		// Start the protocol handler
-		this.protocolHandler.startServer();
-
-		console.log("MCP Workspace Tracker initialization complete");
-	}
+export async function startMcpServer(workspaceTracker: IMcpWorkspaceTracker): Promise<McpServer> {
+  const logger = workspaceTracker.getLogger();
+  const config = workspaceTracker.getConfig();
+  
+  logger.info('Starting MCP Server', {
+    name: config.name,
+    version: config.version
+  });
+  
+  // Create MCP server
+  const server = new McpServer({
+    name: config.name,
+    version: config.version
+  });
+  
+  // Register MCP resources and tools
+  registerMcpResources(server, workspaceTracker);
+  registerMcpTools(server, workspaceTracker);
+  
+  // Connect via stdio transport
+  const transport = new StdioServerTransport();
+  await server.connect(transport);
+  
+  logger.info('MCP Server started and connected via stdio transport');
+  
+  return server;
 }
 
-// Export the main class
-export { MCPWorkspaceTracker };
+/**
+ * Main entry point for direct execution
+ */
+async function main(): Promise<void> {
+  try {
+    // Initialize dependency injection
+    const container = configureContainer();
+    
+    // Get application services
+    const workspaceTracker = container.get<IMcpWorkspaceTracker>(TYPES.McpWorkspaceTracker);
+    const logger = workspaceTracker.getLogger();
+    
+    // Initialize workspace with current directory
+    await workspaceTracker.initialize(process.cwd());
+    
+    // Start MCP server
+    await startMcpServer(workspaceTracker);
+  } catch (error) {
+    console.error('Failed to initialize MCP server:', error);
+    process.exit(1);
+  }
+}
 
-// If this script is run directly, create an instance and initialize with args
+// Execute main function when file is run directly
 if (require.main === module) {
-	const workspaceTracker = new MCPWorkspaceTracker();
-	const workspacePath = process.argv[2] || process.cwd();
-	workspaceTracker.initialize(workspacePath).catch((err) => {
-		console.error("Failed to initialize workspace tracker:", err);
-		process.exit(1);
-	});
+  main().catch(err => {
+    console.error('Unhandled error:', err);
+    process.exit(1);
+  });
 }
