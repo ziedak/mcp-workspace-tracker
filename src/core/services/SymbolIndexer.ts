@@ -4,8 +4,8 @@ import * as path from "path";
 import * as crypto from "crypto";
 import * as ts from "typescript";
 import { ISymbolIndexer } from "../interfaces/ISymbolIndexer";
-import { ILogger } from "../interfaces/ILogger";
-import { IPersistenceManager } from "../interfaces/IPersistenceManager";
+import type { ILogger } from "../interfaces/ILogger";
+import type { IPersistenceManager } from "../interfaces/IPersistenceManager";
 import { Symbol, SymbolKind } from "../models/Symbol";
 import { TYPES } from "../../config/types";
 

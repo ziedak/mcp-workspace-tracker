@@ -1,9 +1,9 @@
 import { injectable, inject } from "inversify";
-import { ILogger } from "../interfaces/ILogger";
-import { IWorkspaceScanner } from "../interfaces/IWorkspaceScanner";
-import { ISymbolIndexer } from "../interfaces/ISymbolIndexer";
-import { IPersistenceManager } from "../interfaces/IPersistenceManager";
-import { IMcpWorkspaceTracker, IMcpServerConfig } from "../interfaces/IMcpWorkspaceTracker";
+import type { ILogger } from "../interfaces/ILogger";
+import type { IWorkspaceScanner } from "../interfaces/IWorkspaceScanner";
+import type { ISymbolIndexer } from "../interfaces/ISymbolIndexer";
+import type { IPersistenceManager } from "../interfaces/IPersistenceManager";
+import type { IMcpWorkspaceTracker, IMcpServerConfig } from "../interfaces/IMcpWorkspaceTracker";
 import { TYPES } from "../../config/types";
 
 /**

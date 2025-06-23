@@ -125,39 +125,101 @@ Phase 2 will build upon this foundation by:
 
 This approach ensures that new components integrate seamlessly while maintaining the quality standards established in Phase 1.
 
+## Initial Focus: Enhanced Transport and Debugging
+
+Before implementing the core Phase 2 features, we will enhance the server transport and debugging capabilities:
+
+### 1. Streamable HTTP Transport
+
+Phase 1 currently uses stdio transport, which limits testing and validation. At the beginning of Phase 2, we will:
+
+- Implement the Streamable HTTP transport from the [TypeScript SDK](https://github.com/modelcontextprotocol/typescript-sdk?tab=readme-ov-file#server)
+- Expose the server's capabilities over HTTP for better testability
+- Update the validation scripts to work with the HTTP transport
+- Create a dedicated service for transport configuration and management
+
+**Implementation Plan:**
+
+```typescript
+// Example HTTP server setup
+import { HttpServerTransport } from "@modelcontextprotocol/sdk/server/http.js";
+
+// Create a server with HTTP transport
+const server = new McpServer({
+	name: "mcp-workspace-tracker",
+	version: "1.0.0",
+});
+
+// Connect via HTTP transport
+const transport = new HttpServerTransport({ port: 3000 });
+await server.connect(transport);
+```
+
+### 2. MCP Inspector Integration
+
+To facilitate testing and debugging during Phase 2 development, we will integrate MCP Inspector:
+
+- Set up the MCP Inspector tool for development and testing
+- Create dedicated debugging endpoints and tools
+- Implement enhanced logging specifically for inspector interactions
+- Add development scripts to easily launch the server with inspector support
+
+**Implementation Plan:**
+
+```bash
+# Using MCP Inspector with our server
+npm run mcp:inspect -- --server-command 'npm run start:server /path/to/workspace'
+```
+
+This will allow developers to:
+
+- Visualize the server's capabilities
+- Interactively test tools and resources
+- Debug requests and responses in real-time
+- Validate the class hierarchy and dependency graph features
+
+These enhancements will be prioritized at the beginning of Phase 2 to establish a more robust development and testing environment before implementing the core analytical features.
+
 ## Implementation Milestones
 
-1. **Milestone 1: Core Class Hierarchy Analysis**
+1. **Milestone 0: Transport and Debugging Enhancements** (NEW)
+
+   - Implement Streamable HTTP transport
+   - Integrate MCP Inspector for testing and debugging
+   - Create HTTP server configuration
+   - Update validation scripts for HTTP transport
+
+2. **Milestone 1: Core Class Hierarchy Analysis**
 
    - Interface definition
    - Basic implementation
    - Simple hierarchy tracking
 
-2. **Milestone 2: Advanced Class Relationships**
+3. **Milestone 2: Advanced Class Relationships**
 
    - Interface implementations
    - Method overrides
    - Generic type handling
 
-3. **Milestone 3: Dependency Graph Foundation**
+4. **Milestone 3: Dependency Graph Foundation**
 
    - Interface definition
    - Basic import/export tracking
    - Module relationship model
 
-4. **Milestone 4: Advanced Dependency Analysis**
+5. **Milestone 4: Advanced Dependency Analysis**
 
    - Circular dependency detection
    - Impact analysis
    - Dependency visualization data
 
-5. **Milestone 5: MCP Integration**
+6. **Milestone 5: MCP Integration**
 
    - New resources
    - New tools
    - Response formatting
 
-6. **Milestone 6: Testing & Documentation**
+7. **Milestone 6: Testing & Documentation**
    - Unit tests for new components
    - Integration tests for combined functionality
    - API documentation
@@ -195,13 +257,14 @@ By the end of Phase 2, the MCP Server should be able to:
 
 ## Timeline
 
-1. ClassHierarchyBuilder implementation: 1-2 weeks
-2. DependencyGraphBuilder implementation: 1-2 weeks
-3. Enhanced Persistence Layer: 1 week
-4. Extended MCP Protocol: 1 week
-5. Testing and refinement: 1 week (accelerated due to existing test infrastructure)
+1. Streamable HTTP transport and MCP Inspector integration: 1 week
+2. ClassHierarchyBuilder implementation: 1-2 weeks
+3. DependencyGraphBuilder implementation: 1-2 weeks
+4. Enhanced Persistence Layer: 1 week
+5. Extended MCP Protocol: 1 week
+6. Testing and refinement: 1 week (accelerated due to existing test infrastructure)
 
-Total estimated time: 4-7 weeks depending on complexity and scope adjustments.
+Total estimated time: 5-8 weeks depending on complexity and scope adjustments.
 
 Note: The timeline benefits from the robust test infrastructure already in place, which accelerates test development for new components.
 

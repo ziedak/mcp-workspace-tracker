@@ -1,8 +1,8 @@
 import { injectable, inject } from "inversify";
 import * as fs from "fs/promises";
 import * as path from "path";
-import { IPersistenceManager } from "../interfaces/IPersistenceManager";
-import { ILogger } from "../interfaces/ILogger";
+import type { IPersistenceManager } from "../interfaces/IPersistenceManager";
+import type { ILogger } from "../interfaces/ILogger";
 import { TYPES } from "../../config/types";
 
 /**

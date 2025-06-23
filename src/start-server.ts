@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 
 import path from "path";
-import { container } from "./src/config/container";
-import { TYPES } from "./src/config/types";
-import { IMcpWorkspaceTracker } from "./src/core/interfaces/IMcpWorkspaceTracker";
-import { ILogger } from "./src/core/interfaces/ILogger";
+import { container } from "./config/container";
+import { TYPES } from "./config/types";
+import { IMcpWorkspaceTracker } from "./core/interfaces/IMcpWorkspaceTracker";
+import { ILogger } from "./core/interfaces/ILogger";
+import { startMcpServer } from "./index";
 
 /**
  * Entry point for the MCP workspace tracker server
@@ -26,8 +27,7 @@ async function main(): Promise<void> {
 		// Initialize the workspace tracker
 		await workspaceTracker.initialize(absoluteWorkspacePath);
 
-		// Initialize and start the MCP server
-		const { startMcpServer } = await import("./src/index");
+		// Initialize and start the MCP server using standard import
 		await startMcpServer(workspaceTracker);
 
 		logger.info(`MCP Workspace Tracker server started successfully`);

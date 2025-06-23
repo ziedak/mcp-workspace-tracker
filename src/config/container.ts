@@ -12,35 +12,27 @@ import { PersistenceManager } from "../core/services/PersistenceManager";
 import { IMcpWorkspaceTracker, IMcpServerConfig } from "../core/interfaces/IMcpWorkspaceTracker";
 import { McpWorkspaceTracker } from "../core/services/McpWorkspaceTracker";
 
-// Create a singleton container instance
+/**
+ * Singleton container instance for dependency injection
+ */
 const container = new Container({
 	defaultScope: "Singleton",
 	skipBaseClassChecks: false,
 });
 
-/**
- * Configure dependency injection container
- */
-export function configureContainer(): Container {
-	// Configure server details
-	const serverConfig: IMcpServerConfig = {
-		name: "mcp-workspace-tracker",
-		version: "1.0.0",
-	};
+// Configure server details
+const serverConfig: IMcpServerConfig = {
+	name: "mcp-workspace-tracker",
+	version: "1.0.0",
+};
 
-	// Bind services
-	container.bind<ILogger>(TYPES.Logger).to(Logger);
-	container.bind<IWorkspaceScanner>(TYPES.WorkspaceScanner).to(WorkspaceScanner);
-	container.bind<ISymbolIndexer>(TYPES.SymbolIndexer).to(SymbolIndexer);
-	container.bind<IPersistenceManager>(TYPES.PersistenceManager).to(PersistenceManager);
-	container.bind<IMcpServerConfig>(TYPES.McpServerConfig).toConstantValue(serverConfig);
-	container.bind<IMcpWorkspaceTracker>(TYPES.McpWorkspaceTracker).to(McpWorkspaceTracker);
+// Bind services once during module initialization
+container.bind<ILogger>(TYPES.Logger).to(Logger);
+container.bind<IWorkspaceScanner>(TYPES.WorkspaceScanner).to(WorkspaceScanner);
+container.bind<ISymbolIndexer>(TYPES.SymbolIndexer).to(SymbolIndexer);
+container.bind<IPersistenceManager>(TYPES.PersistenceManager).to(PersistenceManager);
+container.bind<IMcpServerConfig>(TYPES.McpServerConfig).toConstantValue(serverConfig);
+container.bind<IMcpWorkspaceTracker>(TYPES.McpWorkspaceTracker).to(McpWorkspaceTracker);
 
-	return container;
-}
-
-// Export the container instance
+// Export the singleton container instance
 export { container };
-
-// Initialize the container
-configureContainer();

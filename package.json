@@ -6,7 +6,9 @@
 	"scripts": {
 		"build": "tsc -p tsconfig.json",
 		"start": "node dist/index.js",
+		"start:server": "node dist/start-server.js",
 		"start:dev": "ts-node src/index.ts",
+		"start:dev:server": "ts-node src/start-server.ts",
 		"start:watch": "nodemon --watch src -e ts --exec ts-node src/index.ts",
 		"test": "jest",
 		"test:watch": "jest --watchAll",
