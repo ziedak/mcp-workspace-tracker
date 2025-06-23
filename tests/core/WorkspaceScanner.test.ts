@@ -1,18 +1,72 @@
-// @ts-nocheck
-// Using ts-nocheck to bypass strict TypeScript issues with the mock implementations
+// Mock fs/promises and fs before imports
+const mockStat = jest.fn();
+const mockReaddir = jest.fn();
+const mockReadFile = jest.fn();
+
+jest.mock("fs/promises", () => ({
+	stat: mockStat,
+	readdir: mockReaddir,
+	readFile: mockReadFile,
+}));
+
+jest.mock("fs", () => {
+	const actualFs = jest.requireActual("fs");
+	return {
+		...actualFs,
+		promises: {
+			stat: mockStat,
+			readdir: mockReaddir,
+			readFile: mockReadFile,
+		},
+	};
+});
+
+// Import after mocking
 import { WorkspaceScanner } from "../../src/core/services/WorkspaceScanner";
 import { MockLogger } from "../mocks/MockLogger";
-import type { PathLike, Stats, Dirent } from "fs";
-import * as fs from "fs/promises";
 import * as path from "path";
-
-// Mock fs/promises
-jest.mock("fs/promises");
+import type { Dirent, Stats } from "fs";
 
 describe("WorkspaceScanner", () => {
 	let workspaceScanner: WorkspaceScanner;
 	let mockLogger: MockLogger;
-	const mockFs = fs as jest.Mocked<typeof fs>;
+
+	// Helper function to create mock Stats object
+	const createMockStats = (isDir: boolean): Stats =>
+		({
+			isDirectory: () => isDir,
+			isFile: () => !isDir,
+			size: isDir ? 0 : 1024,
+			mtime: new Date(),
+			birthtime: new Date(),
+			atime: new Date(),
+			ctime: new Date(),
+			dev: 0,
+			gid: 0,
+			uid: 0,
+			ino: 0,
+			mode: 0,
+			nlink: 0,
+			rdev: 0,
+			blocks: 0,
+			blksize: 0,
+		} as Stats);
+
+	// Helper function to create Dirent-like objects for testing
+	function createDirent(name: string, isDir: boolean): Dirent {
+		return {
+			name,
+			isDirectory: () => isDir,
+			isFile: () => !isDir,
+			isBlockDevice: () => false,
+			isCharacterDevice: () => false,
+			isSymbolicLink: () => false,
+			isFIFO: () => false,
+			isSocket: () => false,
+			path: `/test/workspace/${isDir ? name : ""}`,
+			parentPath: `/test/workspace`,
+		} as unknown as Dirent;
+	}
 
 	beforeEach(() => {
 		mockLogger = new MockLogger();
@@ -27,46 +81,50 @@ describe("WorkspaceScanner", () => {
 			// Mock filesystem functions
 			const workspacePath = "/test/workspace";
 
-			mockFs.readdir.mockImplementation(async (dirPath, options) => {
-				const dirPathStr = dirPath.toString();
-				if (dirPathStr === workspacePath) {
-					if (options?.withFileTypes) {
-						return [
-							createDirent("file1.ts", false),
-							createDirent("file2.js", false),
-							createDirent("dir1", true),
-						];
-					}
-					return ["file1.ts", "file2.js", "dir1"];
-				} else if (dirPathStr === path.join(workspacePath, "dir1")) {
-					if (options?.withFileTypes) {
-						return [createDirent("file3.ts", false), createDirent("file4.js", false)];
-					}
-					return ["file3.ts", "file4.js"];
-				}
-				return options?.withFileTypes ? [] : [];
-			});
-
-			mockFs.stat.mockImplementation(async (filePath) => {
+			// Mock workspace as directory
+			mockStat.mockImplementation((filePath: string) => {
 				const filePathStr = filePath.toString();
-				if (
+				if (filePathStr === workspacePath) {
+					return Promise.resolve(createMockStats(true));
+				} else if (
 					filePathStr.includes("dir1") &&
 					!filePathStr.endsWith(".ts") &&
 					!filePathStr.endsWith(".js")
 				) {
-					return {
-						isDirectory: () => true,
-						isFile: () => false,
-						size: 0,
-						mtime: new Date(),
-					};
+					return Promise.resolve(createMockStats(true));
 				}
-				return {
-					isDirectory: () => false,
-					isFile: () => true,
-					size: 1024,
-					mtime: new Date(),
-				};
+				return Promise.resolve(createMockStats(false));
+			});
+
+			// Mock gitignore file
+			mockReadFile.mockImplementation((filePath: string, encoding: string) => {
+				if (filePath.toString().includes(".gitignore")) {
+					return Promise.resolve("node_modules\n.cache\ndist");
+				}
+				return Promise.reject(new Error("File not found"));
+			});
+
+			mockReaddir.mockImplementation((dirPath, options) => {
+				const dirPathStr = dirPath.toString();
+				if (dirPathStr === workspacePath) {
+					if (options?.withFileTypes) {
+						return Promise.resolve([
+							createDirent("file1.ts", false),
+							createDirent("file2.js", false),
+							createDirent("dir1", true),
+						]);
+					}
+					return Promise.resolve(["file1.ts", "file2.js", "dir1"]);
+				} else if (dirPathStr === path.join(workspacePath, "dir1")) {
+					if (options?.withFileTypes) {
+						return Promise.resolve([
+							createDirent("file3.ts", false),
+							createDirent("file4.js", false),
+						]);
+					}
+					return Promise.resolve(["file3.ts", "file4.js"]);
+				}
+				return Promise.resolve(options?.withFileTypes ? [] : []);
 			});
 
 			const files = await workspaceScanner.scanWorkspace(workspacePath);
@@ -85,12 +143,7 @@ describe("WorkspaceScanner", () => {
 
 		it("should handle filesystem errors gracefully", async () => {
 			// Mock invalid path - not a directory
-			mockFs.stat.mockResolvedValue({
-				isDirectory: () => false,
-				isFile: () => true,
-				size: 0,
-				mtime: new Date(),
-			});
+			mockStat.mockResolvedValue(createMockStats(false));
 
 			const workspacePath = "/invalid/workspace";
 			await expect(workspaceScanner.scanWorkspace(workspacePath)).rejects.toThrow(
@@ -107,48 +160,41 @@ describe("WorkspaceScanner", () => {
 			// Setup by scanning some mock files first
 			const workspacePath = "/test/workspace";
 
-			mockFs.readdir.mockImplementation(async (dirPath, options) => {
+			// Mock workspace as directory
+			mockStat.mockImplementation((filePath: string) => {
+				const filePathStr = filePath.toString();
+				if (
+					filePathStr === workspacePath ||
+					filePathStr.includes("dir1") ||
+					filePathStr.includes(".git")
+				) {
+					return Promise.resolve(createMockStats(true));
+				}
+				return Promise.resolve(createMockStats(false));
+			});
+
+			mockReaddir.mockImplementation((dirPath, options) => {
 				const dirPathStr = dirPath.toString();
 				if (dirPathStr === workspacePath) {
 					if (options?.withFileTypes) {
-						return [
+						return Promise.resolve([
 							createDirent("file1.ts", false),
 							createDirent("file2.js", false),
 							createDirent("dir1", true),
 							createDirent(".git", true),
-						];
+						]);
 					}
-					return ["file1.ts", "file2.js", "dir1", ".git"];
+					return Promise.resolve(["file1.ts", "file2.js", "dir1", ".git"]);
 				} else if (dirPathStr === path.join(workspacePath, "dir1")) {
 					if (options?.withFileTypes) {
-						return [createDirent("file3.ts", false), createDirent("file4.js", false)];
+						return Promise.resolve([
+							createDirent("file3.ts", false),
+							createDirent("file4.js", false),
+						]);
 					}
-					return ["file3.ts", "file4.js"];
+					return Promise.resolve(["file3.ts", "file4.js"]);
 				}
-				return options?.withFileTypes ? [] : [];
-			});
-
-			mockFs.stat.mockImplementation(async (filePath) => {
-				const filePathStr = filePath.toString();
-				if (
-					(filePathStr.includes("dir1") &&
-						!filePathStr.endsWith(".ts") &&
-						!filePathStr.endsWith(".js")) ||
-					filePathStr.includes(".git")
-				) {
-					return {
-						isDirectory: () => true,
-						isFile: () => false,
-						size: 0,
-						mtime: new Date(),
-					};
-				}
-				return {
-					isDirectory: () => false,
-					isFile: () => true,
-					size: 1024,
-					mtime: new Date(),
-				};
+				return Promise.resolve(options?.withFileTypes ? [] : []);
 			});
 
 			await workspaceScanner.scanWorkspace(workspacePath);
@@ -165,18 +211,20 @@ describe("WorkspaceScanner", () => {
 		it("should return all files when using wildcard pattern", async () => {
 			// Setup mock workspace
 			const workspacePath = "/test/workspace";
-			mockFs.stat.mockResolvedValue({
-				isDirectory: () => true,
-				isFile: () => false,
-				size: 0,
-				mtime: new Date(),
+
+			mockStat.mockImplementation((filePath: string) => {
+				const filePathStr = filePath.toString();
+				if (filePathStr === workspacePath) {
+					return Promise.resolve(createMockStats(true));
+				}
+				return Promise.resolve(createMockStats(false));
 			});
 
-			mockFs.readdir.mockImplementation(async (dirPath, options) => {
+			mockReaddir.mockImplementation((dirPath, options) => {
 				if (options?.withFileTypes) {
-					return [createDirent("file.ts", false)];
+					return Promise.resolve([createDirent("file.ts", false)]);
 				}
-				return ["file.ts"];
+				return Promise.resolve(["file.ts"]);
 			});
 
 			await workspaceScanner.scanWorkspace(workspacePath);
@@ -191,28 +239,27 @@ describe("WorkspaceScanner", () => {
 			// Setup by scanning some mock files with different types
 			const workspacePath = "/test/workspace";
 
-			mockFs.readdir.mockImplementation(async (dirPath, options) => {
+			mockStat.mockImplementation((filePath: string) => {
+				const filePathStr = filePath.toString();
+				if (filePathStr === workspacePath) {
+					return Promise.resolve(createMockStats(true));
+				}
+				return Promise.resolve(createMockStats(false));
+			});
+
+			mockReaddir.mockImplementation((dirPath, options) => {
 				const dirPathStr = dirPath.toString();
 				if (dirPathStr === workspacePath) {
 					if (options?.withFileTypes) {
-						return [
+						return Promise.resolve([
 							createDirent("app.ts", false),
 							createDirent("test.spec.ts", false),
 							createDirent("config.json", false),
-						];
+						]);
 					}
-					return ["app.ts", "test.spec.ts", "config.json"];
+					return Promise.resolve(["app.ts", "test.spec.ts", "config.json"]);
 				}
-				return options?.withFileTypes ? [] : [];
-			});
-
-			mockFs.stat.mockImplementation(async (filePath) => {
-				return {
-					isDirectory: () => false,
-					isFile: () => true,
-					size: 1024,
-					mtime: new Date(),
-				};
+				return Promise.resolve(options?.withFileTypes ? [] : []);
 			});
 
 			await workspaceScanner.scanWorkspace(workspacePath);
@@ -234,10 +281,12 @@ describe("WorkspaceScanner", () => {
 			const filePath = "/test/workspace/file.txt";
 			const fileContent = "test file content";
 
-			// Mock readFile implementation
-			mockFs.readFile.mockResolvedValue(Buffer.from(fileContent));
+			// Mock readFile implementation - return string content directly
+			mockReadFile.mockResolvedValue(fileContent);
 
 			// Set the root path
+			mockStat.mockResolvedValue(createMockStats(true));
+			mockReaddir.mockResolvedValue([]);
 			await workspaceScanner.scanWorkspace("/test/workspace");
 
 			// Read the file
@@ -250,27 +299,15 @@ describe("WorkspaceScanner", () => {
 			const filePath = "/test/workspace/nonexistent.txt";
 
 			// Mock readFile to throw an error
-			mockFs.readFile.mockRejectedValue(new Error("File not found"));
+			mockReadFile.mockRejectedValue(new Error("File not found"));
 
 			// Set the root path
+			mockStat.mockResolvedValue(createMockStats(true));
+			mockReaddir.mockResolvedValue([]);
 			await workspaceScanner.scanWorkspace("/test/workspace");
 
 			// Expect readFile to throw
 			await expect(workspaceScanner.readFile(filePath)).rejects.toThrow("Failed to read file");
 		});
 	});
-
-	// Helper function to create Dirent-like objects for testing
-	function createDirent(name: string, isDir: boolean): Dirent {
-		return {
-			name,
-			isDirectory: () => isDir,
-			isFile: () => !isDir,
-			isBlockDevice: () => false,
-			isCharacterDevice: () => false,
-			isSymbolicLink: () => false,
-			isFIFO: () => false,
-			isSocket: () => false,
-		};
-	}
 });
