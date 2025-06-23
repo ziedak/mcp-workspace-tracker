@@ -23,10 +23,11 @@ export function registerMcpResources(
 			mimeType: "text/plain",
 		},
 		async (uri: URL) => {
-			logger.debug("Retrieving workspace information");
-			const workspaceStats = await workspaceScanner.getWorkspaceStats();
+			try {
+				logger.debug("Retrieving workspace information");
+				const workspaceStats = await workspaceScanner.getWorkspaceStats();
 
-			const content = `Workspace Statistics:
+				const content = `Workspace Statistics:
 - Total Files: ${workspaceStats.totalFiles}
 - Source Files: ${workspaceStats.sourceFiles}
 - Test Files: ${workspaceStats.testFiles}
@@ -34,14 +35,21 @@ export function registerMcpResources(
 - Other Files: ${workspaceStats.otherFiles}
 `;
 
-			return {
-				contents: [
-					{
-						uri: uri.href,
-						text: content,
-					},
-				],
-			};
+				return {
+					contents: [
+						{
+							uri: uri.href,
+							text: content,
+						},
+					],
+				};
+			} catch (error) {
+				logger.error(
+					"Failed to retrieve workspace information",
+					error instanceof Error ? error : new Error(String(error))
+				);
+				throw new Error(`Failed to retrieve workspace information: ${error}`);
+			}
 		}
 	);
 
@@ -56,19 +64,27 @@ export function registerMcpResources(
 		},
 		// eslint-disable-next-line @typescript-eslint/no-explicit-any
 		async (uri: URL, extra: any) => {
-			const pattern = extra.parameters?.pattern || "*";
-			logger.debug("Listing files matching pattern", { pattern });
-			const files = await workspaceScanner.findFiles(pattern);
-			const content = files.map((file) => file.relativePath).join("\n");
+			try {
+				const pattern = extra.parameters?.pattern || "*";
+				logger.debug("Listing files matching pattern", { pattern });
+				const files = await workspaceScanner.findFiles(pattern);
+				const content = files.map((file) => file.relativePath).join("\n");
 
-			return {
-				contents: [
-					{
-						uri: uri.href,
-						text: content,
-					},
-				],
-			};
+				return {
+					contents: [
+						{
+							uri: uri.href,
+							text: content,
+						},
+					],
+				};
+			} catch (error) {
+				logger.error(
+					"Failed to list files",
+					error instanceof Error ? error : new Error(String(error))
+				);
+				throw new Error(`Failed to list files: ${error}`);
+			}
 		}
 	);
 

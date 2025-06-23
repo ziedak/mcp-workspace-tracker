@@ -4,7 +4,7 @@ import * as path from "path";
 import { minimatch } from "minimatch";
 import { IWorkspaceScanner } from "../interfaces/IWorkspaceScanner";
 import { WorkspaceFile, WorkspaceFileType } from "../models/WorkspaceFile";
-import { ILogger } from "../interfaces/ILogger";
+import type { ILogger } from "../interfaces/ILogger";
 import { TYPES } from "../../config/types";
 
 /**
@@ -243,7 +243,23 @@ export class WorkspaceScanner implements IWorkspaceScanner {
 					}
 				}
 
-				// Use minimatch
+				// Handle file extension pattern without path (e.g. *.log)
+				if (pattern.startsWith("*.") && !isDirectory) {
+					const extension = pattern.substring(1); // Remove the *
+					if (normalizedPath.endsWith(extension)) {
+						return true;
+					}
+				}
+
+				// Handle directory exclusion patterns with wildcards (e.g. dist/**)
+				if (pattern.includes("/**")) {
+					const dirPart = pattern.split("/**")[0];
+					if (normalizedPath.includes(`/${dirPart}/`) || normalizedPath.startsWith(`${dirPart}/`)) {
+						return true;
+					}
+				}
+
+				// Use minimatch for more complex patterns
 				if (minimatch(normalizedPath, pattern, { dot: true })) {
 					return true;
 				}

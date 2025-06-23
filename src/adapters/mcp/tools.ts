@@ -40,16 +40,30 @@ export function registerMcpTools(server: McpServer, workspaceTracker: IMcpWorksp
 		},
 		async ({ query, kind }) => {
 			logger.debug("Searching symbols", { query, kind });
-			const symbols = await symbolIndexer.searchSymbols(query, kind);
-
-			return {
-				content: [
-					{
-						type: "text",
-						text: JSON.stringify(symbols, null, 2),
-					},
-				],
-			};
+			try {
+				const symbols = await symbolIndexer.searchSymbols(query, kind);
+				return {
+					content: [
+						{
+							type: "text",
+							text: JSON.stringify(symbols, null, 2),
+						},
+					],
+				};
+			} catch (error) {
+				logger.error("Failed to search symbols", error instanceof Error ? error : undefined);
+				return {
+					isError: true,
+					content: [
+						{
+							type: "text",
+							text: `Failed to search symbols: ${
+								error instanceof Error ? error.message : String(error)
+							}`,
+						},
+					],
+				};
+			}
 		}
 	);
 

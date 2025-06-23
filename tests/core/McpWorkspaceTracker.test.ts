@@ -75,18 +75,48 @@ describe("McpWorkspaceTracker", () => {
 		});
 
 		it("should handle initialization errors", async () => {
-			// Mock persistence manager to throw error
-			jest
-				.spyOn(mockPersistenceManager, "initialize")
-				.mockRejectedValue(new Error("Initialization failed"));
+			// Setup mock to throw an error
+			jest.spyOn(mockWorkspaceScanner, "scanWorkspace").mockImplementation(() => {
+				throw new Error("Scan failed");
+			});
 
-			// Initialize and expect it to fail
-			await expect(mcpWorkspaceTracker.initialize("/test/workspace")).rejects.toThrow(
-				"Initialization failed"
-			);
+			// Initialize
+			const workspacePath = "/test/workspace";
+			await expect(mcpWorkspaceTracker.initialize(workspacePath)).rejects.toThrow("Scan failed");
 
 			// Verify error was logged
-			expect(mockLogger.hasLog("error", "Failed to initialize workspace tracker")).toBeTruthy();
+			expect(mockLogger.hasLog("error", "Failed to initialize workspace tracker")).toBe(true);
+			expect(
+				mockLogger.logs.find(
+					(log) => log.level === "error" && log.message === "Failed to initialize workspace tracker"
+				)?.error?.message
+			).toBe("Scan failed");
+		});
+
+		it("should handle initialization errors with non-Error objects", async () => {
+			// Setup mock to throw a non-Error object
+			jest.spyOn(mockWorkspaceScanner, "scanWorkspace").mockImplementation(() => {
+				throw "String error message"; // Non-error object
+			});
+
+			// Initialize
+			const workspacePath = "/test/workspace";
+			try {
+				await mcpWorkspaceTracker.initialize(workspacePath);
+				fail("Should have thrown an error");
+			} catch (error) {
+				// Verify error was caught and thrown
+				expect(error).toBe("String error message");
+			}
+
+			// Verify error was logged
+			expect(mockLogger.hasLog("error", "Failed to initialize workspace tracker")).toBe(true);
+			// Verify the error was properly wrapped as an Error object
+			expect(
+				mockLogger.logs.find(
+					(log) => log.level === "error" && log.message === "Failed to initialize workspace tracker"
+				)?.error instanceof Error
+			).toBe(true);
 		});
 	});
 
