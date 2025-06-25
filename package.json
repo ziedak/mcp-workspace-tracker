@@ -10,7 +10,8 @@
 		"start:dev": "ts-node src/index.ts",
 		"start:dev:server": "ts-node src/start-server.ts",
 		"start:watch": "nodemon --watch src -e ts --exec ts-node src/index.ts",
-		"test": "jest",
+		"test": "jest --detectOpenHandles --forceExit",
+		"test:failed": "jest --detectOpenHandles --silent",
 		"test:watch": "jest --watchAll",
 		"test:coverage": "jest --coverage",
 		"lint": "eslint src --ext .ts",
@@ -30,6 +31,7 @@
 	"license": "MIT",
 	"dependencies": {
 		"@modelcontextprotocol/sdk": "^1.13.0",
+		"express": "^5.1.0",
 		"inversify": "^6.0.2",
 		"minimatch": "^9.0.3",
 		"reflect-metadata": "^0.2.1",
@@ -37,6 +39,7 @@
 		"zod": "^3.22.4"
 	},
 	"devDependencies": {
+		"@types/express": "^5.0.3",
 		"@types/jest": "^29.5.12",
 		"@types/minimatch": "^5.1.2",
 		"@types/node": "^20.11.30",

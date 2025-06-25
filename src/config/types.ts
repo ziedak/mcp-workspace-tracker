@@ -8,4 +8,8 @@ export const TYPES = {
 	PersistenceManager: Symbol.for("PersistenceManager"),
 	McpServerConfig: Symbol.for("McpServerConfig"),
 	McpWorkspaceTracker: Symbol.for("McpWorkspaceTracker"),
+	// Phase 2 - New services
+	ClassHierarchyBuilder: Symbol.for("ClassHierarchyBuilder"),
+	DependencyGraphBuilder: Symbol.for("DependencyGraphBuilder"),
+	HttpTransport: Symbol.for("HttpTransport"),
 };

@@ -290,4 +290,48 @@ describe("MCP Resources", () => {
 			).toBe(true);
 		}
 	});
+
+	it("should handle errors in file contents handler", async () => {
+		// Arrange
+		mockWorkspaceScanner.readFile.mockImplementationOnce(() => {
+			throw new Error("File read error");
+		});
+		registerMcpResources(mockServer as any, mockWorkspaceTracker as any);
+		const resourceHandler = mockServer.registerResource.mock.calls.find(
+			(call) => call[0] === "file-contents"
+		)[3];
+
+		// Act & Assert
+		try {
+			const url = new URL("file:///workspace/error-file.ts");
+			await resourceHandler(url, { parameters: { path: "/workspace/error-file.ts" } });
+			fail("Should have thrown an error");
+		} catch (error) {
+			expect(error.message).toContain("Failed to read file");
+			expect(error.message).toContain("/workspace/error-file.ts");
+		}
+
+		// Skip checking mockLogger.error since it's not a jest mock in the registerMcpResources function
+	});
+
+	it("should handle non-Error objects in file contents error handling", async () => {
+		// Arrange
+		mockWorkspaceScanner.readFile.mockImplementationOnce(() => {
+			throw "String error"; // Non-Error object
+		});
+		registerMcpResources(mockServer as any, mockWorkspaceTracker as any);
+		const resourceHandler = mockServer.registerResource.mock.calls.find(
+			(call) => call[0] === "file-contents"
+		)[3];
+
+		// Act & Assert
+		try {
+			const url = new URL("file:///workspace/error-file.ts");
+			await resourceHandler(url, { parameters: { path: "/workspace/error-file.ts" } });
+			fail("Should have thrown an error");
+		} catch (error) {
+			expect(error.message).toContain("Failed to read file");
+			expect(error.message).toContain("/workspace/error-file.ts");
+		}
+	});
 });

@@ -23,6 +23,14 @@ export class PersistenceManager implements IPersistenceManager {
 	constructor(@inject(TYPES.Logger) private readonly logger: ILogger) {}
 
 	/**
+	 * Check if cache directory is valid and available
+	 * @returns True if cache directory is set and can be used for file operations
+	 */
+	private isValidCacheDirectory(): boolean {
+		return this.cacheDir !== "";
+	}
+
+	/**
 	 * Initialize persistence for workspace
 	 * @param workspacePath - Path to workspace
 	 */
@@ -82,7 +90,7 @@ export class PersistenceManager implements IPersistenceManager {
 	 * Save file hashes to disk
 	 */
 	private async saveFileHashes(): Promise<void> {
-		if (!this.cacheDir) {
+		if (!this.isValidCacheDirectory()) {
 			return;
 		}
 
@@ -160,7 +168,7 @@ export class PersistenceManager implements IPersistenceManager {
 	 * @param data - Data to store
 	 */
 	public async saveData<T>(key: string, data: T): Promise<void> {
-		if (!this.cacheDir) {
+		if (!this.isValidCacheDirectory()) {
 			this.inMemoryCache.set(key, data);
 			return;
 		}
@@ -193,7 +201,7 @@ export class PersistenceManager implements IPersistenceManager {
 			return this.inMemoryCache.get(key) as T;
 		}
 
-		if (!this.cacheDir) {
+		if (!this.isValidCacheDirectory()) {
 			return null;
 		}
 
@@ -230,7 +238,7 @@ export class PersistenceManager implements IPersistenceManager {
 		this.fileHashes.clear();
 		this.inMemoryCache.clear();
 
-		if (!this.cacheDir) {
+		if (!this.isValidCacheDirectory()) {
 			return;
 		}
 

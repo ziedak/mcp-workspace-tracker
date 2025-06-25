@@ -1,23 +1,35 @@
 import "reflect-metadata";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { container } from "./config/container"; // Import the already configured container
 import { TYPES } from "./config/types";
 import { IMcpWorkspaceTracker } from "./core/interfaces/IMcpWorkspaceTracker";
+import { ITransportAdapter } from "./core/interfaces/ITransportAdapter";
 import { registerMcpResources } from "./adapters/mcp/resources";
 import { registerMcpTools } from "./adapters/mcp/tools";
+import {
+	TransportFactory,
+	TransportType,
+	TransportOptions,
+} from "./adapters/transport/TransportFactory";
 
 /**
- * Start the MCP server with the provided workspace tracker instance
+ * Start the MCP server with the provided workspace tracker instance and transport
  * @param workspaceTracker - Initialized workspace tracker instance
+ * @param transportType - Type of transport to use ('stdio' | 'http')
+ * @param transportOptions - Configuration options for the transport
  */
-export async function startMcpServer(workspaceTracker: IMcpWorkspaceTracker): Promise<McpServer> {
+export async function startMcpServer(
+	workspaceTracker: IMcpWorkspaceTracker,
+	transportType: TransportType = "stdio",
+	transportOptions?: TransportOptions
+): Promise<{ server: McpServer; transport: ITransportAdapter }> {
 	const logger = workspaceTracker.getLogger();
 	const config = workspaceTracker.getConfig();
 
 	logger.info("Starting MCP Server", {
 		name: config.name,
 		version: config.version,
+		transport: transportType,
 	});
 
 	// Create MCP server
@@ -30,17 +42,20 @@ export async function startMcpServer(workspaceTracker: IMcpWorkspaceTracker): Pr
 	registerMcpResources(server, workspaceTracker);
 	registerMcpTools(server, workspaceTracker);
 
-	// Connect via stdio transport
-	const transport = new StdioServerTransport();
-	await server.connect(transport);
+	// Create and connect transport
+	const transport = TransportFactory.create(transportType, transportOptions);
+	await transport.connect(server);
 
-	logger.info("MCP Server started and connected via stdio transport");
+	logger.info("MCP Server started and connected", {
+		transport: transport.getType(),
+		address: transport.getAddress?.() || null,
+	});
 
-	return server;
+	return { server, transport };
 }
 
 /**
- * Main entry point for direct execution
+ * Main entry point for direct execution (stdio transport)
  */
 async function main(): Promise<void> {
 	try {
@@ -52,8 +67,8 @@ async function main(): Promise<void> {
 		// Initialize workspace with current directory
 		await workspaceTracker.initialize(process.cwd());
 
-		// Start MCP server
-		await startMcpServer(workspaceTracker);
+		// Start MCP server with stdio transport (default)
+		await startMcpServer(workspaceTracker, "stdio");
 	} catch (error) {
 		console.error("Failed to initialize MCP server:", error);
 		process.exit(1);
@@ -61,6 +76,12 @@ async function main(): Promise<void> {
 }
 
 // Execute main function when file is run directly
+if (require.main === module) {
+	main().catch((err) => {
+		console.error("Unhandled error:", err);
+		process.exit(1);
+	});
+}
 if (require.main === module) {
 	main().catch((err) => {
 		console.error("Unhandled error:", err);
